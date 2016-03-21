@@ -31,19 +31,19 @@ var utils = {
 
   createIOResource: function(resourceConfigArray, globalState, callback) {
     resourceConfigArray = utils.resolveIds(resourceConfigArray, globalState)
-      //add bearerToken in the resources
-    for (var i = 0; i < resourceConfigArray.length; i++) {
-      resourceConfigArray[i].bearerTokenToCallIO = globalState.bearerToken
-    }
-    async.eachLimit(resourceConfigArray, resourceConfigArray.length
+    var asyncLimit = 10
+    if(resourceConfigArray && resourceConfigArray[0].isDistributed == true)
+      asyncLimit = 1 // Assumption here is that all the recors in the resourceConfigArray are of same resourceType
+    async.eachLimit(resourceConfigArray, asyncLimit
       , function(resource, cb) {
         var relUri = '/v1/' + resource.resourceType
-          , bearerToken = resource.bearerTokenToCallIO
+          , reqMethod = 'POST'
 
-        delete resource.resourceType
-        delete resource.bearerTokenToCallIO
-
-        utils.requestIntegrator(relUri, 'POST', resource, null, bearerToken, null, function(err, res, body) {
+        if(resource.isDistributed == true) {
+          relUri = relUri + '/' + resource._id + '/distributed'
+          reqMethod = 'PUT'
+        }
+        utils.requestIntegrator(relUri, reqMethod, resource, null, globalState.bearerToken, null, function(err, res, body) {
           if (err) return cb(err)
           resource._id = body._id
           globalState.configs.push(resource)
